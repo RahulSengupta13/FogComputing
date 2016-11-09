@@ -1,8 +1,133 @@
 package fognode;
 
-public class FogNode {
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.Socket;
+import java.util.Iterator;
+import java.util.Map;
 
-	public static void main(String[] args) {
-		
+public class FogNode extends Thread{
+
+	Socket neighbor;
+	public FogNode(Socket neighbor) {
+		// TODO Auto-generated constructor stub
+		this.neighbor = neighbor;
+	}
+
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		super.run();
+		try 
+		{
+			new receiver(neighbor.getInputStream()).start();
+			new update_sender(neighbor.getOutputStream()).start();
+		} catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally
+		{
+			try
+			{
+				neighbor.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	class update_sender extends Thread
+	{
+		OutputStreamWriter client;
+		update_sender(OutputStream client)
+		{
+			this.client = new OutputStreamWriter(client);
+		}
+		@Override
+		public void run() {
+			BufferedWriter writer = null;
+			try 
+			{
+				writer = new BufferedWriter(client);
+				while(true)
+				{
+					writer.write(FogNodeMain.max_response_time+"\n");
+					writer.flush();
+					Thread.sleep(FogNodeMain.update_interval*1000);
+				}
+			} catch (IOException e) 
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch(Exception e)
+			{
+				e.printStackTrace();
+			} finally
+			{
+				try 
+				{
+					client.close();
+					writer.close();
+				} catch (IOException e) 
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	class receiver extends Thread
+	{
+		InputStreamReader client;
+		receiver(InputStream client)
+		{
+			this.client = new InputStreamReader(client);
+		}
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			BufferedReader reader = null;
+			try 
+			{
+				reader = new BufferedReader(client);
+				while(true)
+				{
+					String message = reader.readLine();
+					int neighbor_response_time = Integer.parseInt(message.split("\n")[0]);
+					FogNodeMain.neighbor_mrt.put(neighbor.getRemoteSocketAddress(), neighbor_response_time);
+					System.out.println("\nRT Update Received from: " + neighbor.getRemoteSocketAddress().toString());
+					Iterator<?> iterator = FogNodeMain.neighbor_mrt.entrySet().iterator();
+					while(iterator.hasNext())
+					{
+						Map.Entry pair = (Map.Entry)iterator.next();
+						System.out.println(pair.getKey()+":"+pair.getValue());
+					}
+				}
+			} catch (IOException e)
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch(Exception e)
+			{
+				e.printStackTrace();
+			} finally 
+			{
+				try 
+				{
+					client.close();
+					reader.close();
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+			}
+		}
 	}
 }

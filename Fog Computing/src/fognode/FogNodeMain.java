@@ -7,6 +7,9 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Set;
 
 public class FogNodeMain {
 	
@@ -16,11 +19,18 @@ public class FogNodeMain {
 	public static int my_udp_port;
 	public static int my_tcp_port;
 	public static ServerSocket my_tcp_socket;
-	public static HashMap<SocketAddress, Integer> neighbor_mrt = new HashMap<SocketAddress, Integer>();
-	public static void main(String[] args) {
+	public static HashMap<Socket, Integer> neighbor_mrt = new HashMap<Socket, Integer>();
+	public static RequestQueue delay_queue = new RequestQueue();
+	public static void main(String[] args) 
+	{
 		if(args.length < 5)
 		{
 			System.out.println("Invalid number of arguments.");
+			System.exit(0);
+		}
+		else if((args.length - 5) % 2 != 0)
+		{
+			System.out.println("IP/Port entries mismatched. Please enter an IP and a Port for every Fog Neighbor.");
 			System.exit(0);
 		}
 		try {
@@ -30,6 +40,15 @@ public class FogNodeMain {
 			my_udp_port = Integer.parseInt(args[3]);
 			my_tcp_port = Integer.parseInt(args[4]);
 			my_tcp_socket = new ServerSocket(my_tcp_port);
+			
+			//start the iot message receiver thread
+			IOTRequestAcceptor datagramAcceptor = new IOTRequestAcceptor(my_udp_port, my_address);
+			datagramAcceptor.start();
+			
+			//start the request processor thread
+			RequestQueueProcessor queueProcessor = new RequestQueueProcessor();
+			queueProcessor.start();
+			
 			for(int i=5;i<args.length;i+=2)
 			{
 				InetAddress neighbor_fogNode = InetAddress.getByName(args[i]);
@@ -38,6 +57,7 @@ public class FogNodeMain {
 				{
 					System.out.println("TCP request initiated with: "+ args[i] +" at port: "+args[i+1]);
 					Socket neighbor_socket = new Socket(neighbor_fogNode, neighbor_fogNodeTcpPort);
+					neighbor_mrt.put(neighbor_socket, 9999);
 					FogNode neighbor = new FogNode(neighbor_socket);
 					neighbor.start();
 				}
@@ -45,6 +65,7 @@ public class FogNodeMain {
 			while(true)
 			{
 				Socket neighbor_socket = my_tcp_socket.accept();
+				neighbor_mrt.put(neighbor_socket, 9999);
 				System.out.println("TCP request received from: "+ neighbor_socket.getRemoteSocketAddress().toString());
 				FogNode neighbor = new FogNode(neighbor_socket);
 				neighbor.start();

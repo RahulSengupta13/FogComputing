@@ -27,21 +27,23 @@ public class FogNode extends Thread{
 		{
 			new receiver(neighbor.getInputStream()).start();
 			new update_sender(neighbor.getOutputStream()).start();
-		} catch (IOException e)
+		} 
+		catch (IOException e)
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} finally
-		{
-			try
-			{
-				neighbor.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 		}
 	}
+	
+//	class iot_requestSender extends Thread
+//	{	
+//		@Override
+//		public void run() {
+//			// TODO Auto-generated method stub
+//			super.run();
+//			
+//		}
+//	}
 	
 	class update_sender extends Thread
 	{
@@ -58,7 +60,8 @@ public class FogNode extends Thread{
 				writer = new BufferedWriter(client);
 				while(true)
 				{
-					writer.write(FogNodeMain.max_response_time+"\n");
+//					writer.write(FogNodeMain.max_response_time+"\n");
+					writer.write(RequestQueue.getQueuingDelay()+"\n");
 					writer.flush();
 					Thread.sleep(FogNodeMain.update_interval*1000);
 				}
@@ -100,30 +103,27 @@ public class FogNode extends Thread{
 				while(true)
 				{
 					String message = reader.readLine();
-					int neighbor_response_time = Integer.parseInt(message.split("\n")[0]);
-					FogNodeMain.neighbor_mrt.put(neighbor.getRemoteSocketAddress(), neighbor_response_time);
-					System.out.println("\nRT Update Received from: " + neighbor.getRemoteSocketAddress().toString());
-					Iterator<?> iterator = FogNodeMain.neighbor_mrt.entrySet().iterator();
-					while(iterator.hasNext())
-					{
-						Map.Entry pair = (Map.Entry)iterator.next();
-						System.out.println(pair.getKey()+":"+pair.getValue());
-					}
+					new FogNodeRequestProcessor(message,neighbor).start();
 				}
-			} catch (IOException e)
+			}
+			catch (IOException e)
 			{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-			} catch(Exception e)
+			}
+			catch(Exception e)
 			{
 				e.printStackTrace();
-			} finally 
+			}
+			finally 
 			{
 				try 
 				{
 					client.close();
 					reader.close();
-				} catch (IOException e1) {
+				}
+				catch (IOException e1)
+				{
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
